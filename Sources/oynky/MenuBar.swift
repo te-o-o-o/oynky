@@ -31,6 +31,11 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Watt-hours per app over the last 24 hours.
     var day: [String: Double] = [:]
     static let drawKey = "draw"
+    /// For the grey line under each name: a path per app, the app that launched it, the services index.
+    var paths: [String: String] = [:]
+    var launchedBy: [String: String] = [:]
+    var services: [String: String] = [:]
+    var explained: [String: (line: String?, tip: String?, live: Bool)] = [:]
 
     static let window: TimeInterval = 6 * 3600
     static let week: TimeInterval = 7 * 86400
@@ -163,6 +168,11 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for install in installed {
             sinceInstall[install.name] = summary(records.filter { $0.time >= install.added }).first { $0.name == install.name }
         }
+        if let last = monitor.last {
+            for p in last.procs where paths[p.app] == nil { paths[p.app] = p.path }
+            launchedBy = launchers(in: last)
+        }
+        if services.isEmpty { services = launchServices() }  // ~40 ms for ~850 plists, once
         fill()
         schedule()
     }
@@ -226,13 +236,40 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let style = NSMutableParagraphStyle()
         style.tabStops = [NSTextTab(textAlignment: .right, location: 250), NSTextTab(textAlignment: .right, location: 330)]
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        let small: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]
         for row in rows.prefix(5) {
             let item = NSMenuItem()
-            let text = ([String(row.name.prefix(28))] + row.values).joined(separator: "\t")
-            item.attributedTitle = NSAttributedString(string: text, attributes: [.paragraphStyle: style, .font: font])
-            item.toolTip = row.tip
+            let text = NSMutableAttributedString(string: ([String(row.name.prefix(28))] + row.values).joined(separator: "\t"),
+                                                 attributes: [.paragraphStyle: style, .font: font])
+            let about = explain(row.name)
+            if let line = about.line { text.append(NSAttributedString(string: "\n" + line, attributes: small)) }
+            item.attributedTitle = text
+            item.toolTip = [row.tip, about.tip].compactMap { $0 }.joined(separator: "\n\n")
             menu.addItem(item)
         }
+    }
+
+    /// The grey line under a name (what it is · who made it · how it starts) and the details for its tooltip.
+    /// Cached per app: the signature is the costly part, and the menu refills every second.
+    func explain(_ name: String) -> (line: String?, tip: String?) {
+        if let known = explained[name], paths[name] == nil || known.live { return (known.line, known.tip) }
+        let path = paths[name]
+        let gloss = glossary[name]
+        let program = path.map { URL(filePath: $0).lastPathComponent } ?? name
+        let what = gloss.map { tr($0.what.en, $0.what.fr) } ?? manSummary(program).map { $0.prefix(1).uppercased() + $0.dropFirst() }
+        // Who signed it, from the outermost bundle when there is one (helpers share their app's signature).
+        let who = path.map { path in
+            let bundle = path.firstRange(of: ".app/").map { String(path[..<$0.lowerBound]) + ".app" } ?? path
+            return signer(path: bundle) ?? tr("unsigned", "non signée")
+        }
+        let service = path.flatMap { services[$0] }
+        let how = launchedBy[name].map { tr("launched by \($0)", "lancée par \($0)") }
+            ?? (service != nil && who != "Apple" ? tr("starts on its own", "se lance toute seule") : nil)
+        let line = [what, who, how].compactMap { $0 }.joined(separator: " · ")
+        let tip = [gloss?.note.map { tr($0.en, $0.fr) }, service.map { tr("Service: ", "Service : ") + $0 }, path].compactMap { $0 }.joined(separator: "\n")
+        let about = (line: line.isEmpty ? nil : line, tip: tip.isEmpty ? nil : tip, live: path != nil)
+        explained[name] = about
+        return (about.line, about.tip)
     }
 
     /// Share of a full charge: "4 %", "0.3 %".
