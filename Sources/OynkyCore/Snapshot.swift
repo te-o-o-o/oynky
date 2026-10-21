@@ -88,10 +88,15 @@ public func snapshot(after previous: Snapshot? = nil) -> Snapshot {
         // A process that exits between the two calls has no path any more: drop it.
         let length = Int(proc_pidpath(pid, &path, UInt32(path.count)))
         guard length > 0 else { continue }
-        var bsd = proc_bsdinfo()
-        let ppid = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, Int32(MemoryLayout<proc_bsdinfo>.size)) > 0 ? Int32(bsd.pbi_ppid) : 1
+        let ppid = parent(of: pid)?.ppid ?? 1
         let p = String(decoding: path.prefix(length), as: UTF8.self)
-        procs.append(Proc(pid: pid, ppid: ppid, start: start, path: p, cpu: cpu, energy: info.ri_energy_nj, memory: info.ri_phys_footprint))
+        var proc = Proc(pid: pid, ppid: ppid, start: start, path: p, cpu: cpu, energy: info.ri_energy_nj, memory: info.ri_phys_footprint)
+        // A file named like a version (Claude Code's `2.1.306`) is named after its command instead,
+        // which also keeps every version in one group. Only then is the command line read.
+        if !proc.app.contains(where: \.isLetter), let argv0 = arguments(pid: pid)?.first, let name = commandName(executable: p, argv0: argv0) {
+            proc.app = name
+        }
+        procs.append(proc)
     }
     return Snapshot(time: time, procs: procs, unreadable: unreadable)
 }

@@ -32,8 +32,8 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Watt-hours per app over the last 24 hours.
     var day: [String: Double] = [:]
     static let drawKey = "draw"
-    /// For the grey line under each name: a path per app, the app that launched it, the services index.
-    var paths: [String: String] = [:]
+    /// For the grey line under each name: each app's live processes, the app that launched it, the services index.
+    var groups: [String: [Proc]] = [:]
     var launchedBy: [String: String] = [:]
     var services: [String: String] = [:]
     var explained: [String: (line: String?, tip: String?, live: Bool)] = [:]
@@ -175,7 +175,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
             sinceInstall[install.name] = summary(records.filter { $0.time >= install.added }).first { $0.name == install.name }
         }
         if let last = monitor.last {
-            for p in last.procs where paths[p.app] == nil { paths[p.app] = p.path }
+            groups = Dictionary(grouping: last.procs, by: \.app)
             launchedBy = launchers(in: last)
         }
         if services.isEmpty { services = launchServices() }  // ~40 ms for ~850 plists, once
@@ -255,27 +255,70 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// The grey line under a name (what it is · who made it · how it starts) and the details for its tooltip.
-    /// Cached per app: the signature is the costly part, and the menu refills every second.
+    /// The grey line under a name and the details for its tooltip: what it is, what it runs,
+    /// who signed it, where it comes from, how it starts. Cached per app: the signature and the
+    /// download log are the costly parts, and the menu refills every second.
     func explain(_ name: String) -> (line: String?, tip: String?) {
-        if let known = explained[name], paths[name] == nil || known.live { return (known.line, known.tip) }
-        let path = paths[name]
+        let procs = groups[name] ?? []
+        if let known = explained[name], procs.isEmpty || known.live { return (known.line, known.tip) }
+        let path = procs.first?.path
         let gloss = glossary[name]
         let program = path.map { URL(filePath: $0).lastPathComponent } ?? name
         let what = gloss.map { tr($0.what.en, $0.what.fr) } ?? manSummary(program).map { $0.prefix(1).uppercased() + $0.dropFirst() }
-        // Who signed it, from the outermost bundle when there is one (helpers share their app's signature).
-        let who = path.map { path in
-            let bundle = path.firstRange(of: ".app/").map { String(path[..<$0.lowerBound]) + ".app" } ?? path
-            return signer(path: bundle) ?? tr("unsigned", "non signée")
+        // Helpers share their app's signature and download tag: read them from the outermost bundle.
+        let bundle = path.map { path in path.firstRange(of: ".app/").map { String(path[..<$0.lowerBound]) + ".app" } ?? path }
+        let signed = bundle.flatMap { signature(path: $0) }
+        let who: String? = switch signed {
+        case .author(let author): author
+        case .adhoc: tr("signed on a Mac, no author", "signée localement, sans auteur")
+        case .unsigned: tr("unsigned", "non signée")
+        case nil: nil
         }
+        let fetched = bundle.flatMap { download(path: $0) }
+        let fetchedText = fetched.map { d in tr("downloaded with \(d.agent)", "téléchargée avec \(d.agent)") + (d.host.map { " (\($0))" } ?? "") }
+        // Code with no author says nothing by its name: where it lives and where it came from do.
+        var origin: String?
+        if case .author = signed {} else if path != nil {
+            origin = fetchedText ?? path.flatMap { place(path: $0) }.map(placeText) ?? tr("made on this Mac", "créée sur ce Mac")
+        }
+        let scripts = Array(Set(procs.prefix(8).compactMap { arguments(pid: $0.pid).flatMap(script) })).sorted().prefix(2)
         let service = path.flatMap { services[$0] }
         let how = launchedBy[name].map { tr("launched by \($0)", "lancée par \($0)") }
             ?? (service != nil && who != "Apple" ? tr("starts on its own", "se lance toute seule") : nil)
-        let line = [what, who, how].compactMap { $0 }.joined(separator: " · ")
-        let tip = [gloss?.note.map { tr($0.en, $0.fr) }, service.map { tr("Service: ", "Service : ") + $0 }, path].compactMap { $0 }.joined(separator: "\n")
+        // An app's folder is "/"; a tool's is where it was started from, often the clearest clue.
+        let folder = bundle == path ? procs.lazy.compactMap { workingDirectory(pid: $0.pid) }.first { $0 != "/" }.map(tilde) : nil
+        let from = how == nil ? folder.map { tr("from \($0)", "depuis \($0)") } : nil
+
+        let line = [what, scripts.isEmpty ? nil : scripts.joined(separator: ", "), who, origin, how, from].compactMap { $0 }.joined(separator: " · ")
+        let created = bundle == path ? path.flatMap { try? FileManager.default.attributesOfItem(atPath: $0)[.creationDate] as? Date } : nil
+        let tip = [
+            gloss?.note.map { tr($0.en, $0.fr) },
+            fetched.map { d in (fetchedText ?? "") + " " + ago(d.date) },
+            created.map { tr("File created ", "Fichier créé ") + ago($0) },
+            folder.map { tr("Working in ", "Travaille dans ") + $0 },
+            service.map { tr("Service: ", "Service : ") + $0 },
+            path,
+        ].compactMap { $0 }.joined(separator: "\n")
         let about = (line: line.isEmpty ? nil : line, tip: tip.isEmpty ? nil : tip, live: path != nil)
         explained[name] = about
         return (about.line, about.tip)
+    }
+
+    func placeText(_ place: Place) -> String {
+        switch place {
+        case .homebrew: "Homebrew"
+        case .npm: "npm"
+        case .cargo: "Cargo"
+        case .temporary: tr("in a temporary folder", "dans un dossier temporaire")
+        case .build: tr("in a build folder", "dans un dossier de compilation")
+        case .downloads: tr("in Downloads", "dans Téléchargements")
+        case .home(let folder): tr("in \(folder)", "dans \(folder)")
+        }
+    }
+
+    func tilde(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }
 
     /// Share of a full charge: "4 %", "0.3 %".
