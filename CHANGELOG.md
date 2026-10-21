@@ -5,6 +5,8 @@
 ### Added
 
 - Under each process: what it does, who signed it and how it starts (launched by an app, or on its own), with when it runs and whether that is normal for macOS's usual suspects.
+- Programs with no author say where they come from: the script an interpreter runs, where the program lives (Homebrew, npm, a build or temporary folder), the folder it was started from, and the app that downloaded it.
+- Claude Code shows up as `claude`, all versions together, instead of its version number.
 - Each app's share of a battery charge over the last 24 hours, and the minutes of battery it costs.
 - Notifications for new findings, at most once a day each; a click opens the menu.
 - Menu bar app: the apps using the most CPU, energy and memory right now and over the last hour, refreshed every second while the menu is open.
