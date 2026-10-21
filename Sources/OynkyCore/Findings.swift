@@ -49,3 +49,9 @@ public func memoryClimbs(_ records: [Record], now: Date, hours: Int = 6, minGrow
 public func longLived(_ snapshot: Snapshot, app: String, age: UInt64 = 3_600_000_000_000) -> Int {
     snapshot.procs.filter { $0.app == app && snapshot.time >= $0.start + age }.count
 }
+
+/// The findings worth a notification now: never told, or told longer ago than the cooldown.
+/// Keys name a finding ("hog:Zen"), so the same one is not announced again every minute.
+public func due(_ keys: [String], told: [String: Date], now: Date, cooldown: TimeInterval = 86400) -> [String] {
+    keys.filter { key in told[key].map { now.timeIntervalSince($0) >= cooldown } ?? true }
+}
