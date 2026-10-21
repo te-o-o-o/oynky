@@ -1,0 +1,14 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    # macOS only tool. macos-15 ships Xcode 16 (Swift 6), which Package.swift needs.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - run: swift build
+      - run: swift test
