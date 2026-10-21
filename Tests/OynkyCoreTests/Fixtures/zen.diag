@@ -1,0 +1,19 @@
+Date/Time:        2026-10-20 10:33:58.454 +0700
+End time:         2026-10-20 15:13:35.063 +0700
+OS Version:       macOS 27.0.1 (Build 26A434)
+Report Version:   73
+
+Command:          zen
+Path:             /Applications/Zen.app/Contents/MacOS/zen
+Identifier:       app.zen-browser.zen
+Is First Party:   No
+PID:              55715
+
+Event:            disk writes
+Action taken:     none
+Writes:           2147.52 MB of file backed memory dirtied over 16777 seconds (128.01 KB per second average), exceeding limit of 24.86 KB per second over 86400 seconds
+Writes limit:     2147.48 MB
+Limit duration:   86400s
+
+Heaviest stack for the target process:
+  23  ??? (zen + 12345) [0x100003039]
