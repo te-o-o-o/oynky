@@ -22,6 +22,7 @@ This project is outside the global stack table on purpose (macOS-only, Swift, li
 - Energy is `ri_energy_nj` (rusage v6); `ri_billed_energy` is 0 for most apps.
 - Without root, `proc_pid_rusage` fails on other users' processes (~1/3 of them): counted in `Snapshot.unreadable`, never an error.
 - Pass the previous snapshot to `snapshot(after:)`: re-reading every path and app name doubled the CPU at rest.
+- Never set the status item's image when it has not changed: menu bar managers (Thaw) re-query it through Accessibility each time, and that work is billed to oynky.
 - The app runs on efficiency cores: benchmarks on the command line read ~7× lower than the real cost. Measure the bundled app.
 - `#expect`/`#require` cannot call `mutating` methods (`monitor.add`): store the result first.
 - `swift test` sometimes fails with "plugin for module 'TestingMacros' not found" (Command Line Tools bug, random): just rerun.

@@ -17,6 +17,8 @@
 - macOS reports: the `.diag` files of `/Library/Logs/DiagnosticReports`, readable by admin users without root (group `_analyticsusers`). Only the first 4 KB are read. Dated by their `End time`: the file date changes when macOS moves files around. Event names seen: `disk writes`, `cpu usage`.
 
 - Notifications: one per finding key (`hog:Zen`, `climb:Zen`, `report:Zen:disk writes`, `install:Zen`), at most once a day, the dates kept in UserDefaults (`told`), forgotten after 7 days. macOS reports only notify when less than a day old, so a first launch does not dig up the week. Installs notify once they leave processes running for over an hour.
+- "In use" also covers what an app in use launched: `node` or a build started from the terminal you are typing in is not a background hog. Found because Claude Code, running in Ghostty, was flagged.
+- Checked end to end: a test program at ~10 % CPU, never brought to the front, was flagged and notified after ~18 minutes (the 30-minute average crossed 5 %).
 - Battery: capacity is today's full charge (`BatteryData.FullChargeCapacity` × voltage), not the design capacity. An app's energy over 24 h is the sum of its minutes in the history. Minutes of battery use the Mac's usual draw on battery (`InstantAmperage` × voltage, averaged over the minutes on battery, kept in UserDefaults `draw`): no minutes until the Mac has run on battery.
 - Energy figures checked: one performance core at full load reads 2.97 W from `ri_energy_nj`. Most apps show a few mW because they run on the efficiency cores.
 - Explanations, all read from the Mac: the signer from the code signature (`SecStaticCode`, not validated: it names the author, it does not vouch for the code); "launched by" by walking up the parent processes to the first other `.app` (shells skipped, stops at launchd); "starts on its own" when a launch plist runs that program (~850 plists, ~40 ms, indexed once); the manual page's `.Nd` line; and `Glossary.swift`, written by hand for ~60 macOS processes, in English and French.
@@ -29,6 +31,7 @@
 - "In use" means brought to the front: an app playing a video in a window behind another one counts as background.
 - Login items registered with `SMAppService` live inside their app and do not show up as installs; their processes still count towards the app.
 - A process that lives less than one snapshot interval is not seen at all.
+- Menu bar managers (Thaw, Bartender) query the status item through Accessibility all the time: that work lands in oynky's main thread and shows in its CPU (0.28 % at rest with Thaw running, 0.18 % before it).
 - Manual page summaries are English only; the glossary covers the busiest macOS processes, not all of them.
 - XPC services (WebKit pages, video decoders) are started by launchd for an app: the app that asked for them is not known without private APIs.
 - Minutes of battery on a Mac that has never run on battery; the draw on battery is not verified yet (the test Mac stayed plugged in).
