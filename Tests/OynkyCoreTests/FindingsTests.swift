@@ -72,4 +72,6 @@ let gigabyte: UInt64 = 1_000_000_000
     #expect(found.map(\.apple) == [false, true])  // cloudd's report also lists Zen's updater: it must not count
     #expect(found[0].event == "disk writes")
     #expect(found[0].detail.hasPrefix("2147.52 MB of file backed memory dirtied"))
+    #expect(found[0].date == Date(timeIntervalSince1970: 1_792_484_015.063))  // its End time, 2026-10-20 15:13:35.063 +0700
+    #expect(found[1].date == Date(timeIntervalSince1970: 1_792_301_149))  // no End time: its Date/Time
 }
