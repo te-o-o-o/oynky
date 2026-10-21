@@ -3,7 +3,7 @@
 public struct Monitor: Sendable {
     /// Usage over the last interval, empty until the second snapshot.
     public private(set) var live: [AppUsage] = []
-    private var last: Snapshot?
+    public private(set) var last: Snapshot?
     /// The minute being filled: CPU and watts weighted by each interval's length, memory at its peak.
     private var minute: [String: AppUsage] = [:]
     private var filled: UInt64 = 0
@@ -20,7 +20,7 @@ public struct Monitor: Sendable {
 
         let elapsed = snapshot.time - last.time
         for app in live {
-            var m = minute[app.name] ?? AppUsage(name: app.name, cpu: 0, watts: 0, memory: 0, processes: 0)
+            var m = minute[app.name] ?? AppUsage(name: app.name, cpu: 0, watts: 0, memory: 0, processes: 0, apple: app.apple)
             m.cpu += app.cpu * Double(elapsed)
             m.watts += app.watts * Double(elapsed)
             m.memory = max(m.memory, app.memory)
@@ -32,7 +32,7 @@ public struct Monitor: Sendable {
 
         // An app missing from some intervals counts as idle there: divide by the whole minute.
         let done = minute.values.map { m in
-            AppUsage(name: m.name, cpu: m.cpu / Double(filled), watts: m.watts / Double(filled), memory: m.memory, processes: m.processes)
+            AppUsage(name: m.name, cpu: m.cpu / Double(filled), watts: m.watts / Double(filled), memory: m.memory, processes: m.processes, apple: m.apple)
         }
         minute = [:]
         filled = 0
