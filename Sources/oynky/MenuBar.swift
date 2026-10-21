@@ -27,6 +27,10 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var flagged: [Report] = []
     var lastHour: [AppUsage] = []
     var sinceInstall: [String: AppUsage] = [:]
+    var battery = Battery.read()
+    /// Watt-hours per app over the last 24 hours.
+    var day: [String: Double] = [:]
+    static let drawKey = "draw"
 
     static let window: TimeInterval = 6 * 3600
     static let week: TimeInterval = 7 * 86400
@@ -75,6 +79,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do { try history.append(minute, at: now) } catch { NSLog("oynky: history: \(error)") }
             recent = recent.filter { $0.time > now - Self.window } + minute.filter(History.worthKeeping).map { Record(time: now, app: $0) }
             judge()
+            readBattery()
         }
         if menuOpen { fill() }
         schedule()
@@ -136,6 +141,15 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item.button?.image = NSImage(systemSymbolName: alert ? "gauge.with.dots.needle.67percent" : "gauge.with.dots.needle.33percent", accessibilityDescription: "oynky")
     }
 
+    /// The Mac's usual draw on battery, averaged over the minutes it ran on battery: what turns
+    /// an app's watt-hours into minutes of battery.
+    func readBattery() {
+        battery = Battery.read()
+        guard let draw = battery?.draw else { return }
+        let usual = UserDefaults.standard.object(forKey: Self.drawKey) as? Double
+        UserDefaults.standard.set(usual.map { $0 * 0.95 + draw * 0.05 } ?? draw, forKey: Self.drawKey)
+    }
+
     // MARK: menu
 
     func menuWillOpen(_: NSMenu) {
@@ -143,12 +157,11 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = Date()
         lastHour = summary(recent.filter { $0.time > now - 3600 })
         // ponytail: reads up to 7 days of history on each open; cache it if opening ever feels slow.
+        let records = history.records(since: min(now - 86400, installed.map(\.added).min() ?? now))
+        day = energy(records.filter { $0.time > now - 86400 })
         sinceInstall = [:]
-        if let oldest = installed.map(\.added).min() {
-            let records = history.records(since: oldest)
-            for install in installed {
-                sinceInstall[install.name] = summary(records.filter { $0.time >= install.added }).first { $0.name == install.name }
-            }
+        for install in installed {
+            sinceInstall[install.name] = summary(records.filter { $0.time >= install.added }).first { $0.name == install.name }
         }
         fill()
         schedule()
@@ -186,6 +199,15 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
             section(tr("Memory", "Mémoire"), ranked(monitor.live, by: .memory).map { ($0.name, ["", bytes($0.memory)], nil) })
         }
         section(tr("Last hour", "Dernière heure"), ranked(lastHour, by: .cpu).map { ($0.name, [percent($0.cpu), milliwatts($0.watts)], nil) })
+        if let battery {
+            let draw = UserDefaults.standard.object(forKey: Self.drawKey) as? Double
+            let tip = draw.map { tr("Minutes at the Mac's usual draw on battery, \(String(format: "%.1f", $0)) W.",
+                                    "Minutes au rythme habituel du Mac sur batterie, \(String(format: "%.1f", $0)) W.") }
+                ?? tr("Minutes appear once the Mac has run on battery.", "Les minutes apparaissent quand le Mac a tourné sur batterie.")
+            section(tr("Battery, last 24 hours", "Batterie, dernières 24 heures"), day.sorted { $0.value > $1.value }.map { name, wh in
+                (name, [charge(wh / battery.capacity), draw.map { minutes(wh / $0) } ?? ""], tip)
+            })
+        }
 
         menu.addItem(.separator())
         // Login items need a real .app: hidden under `swift run`.
@@ -211,6 +233,17 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.toolTip = row.tip
             menu.addItem(item)
         }
+    }
+
+    /// Share of a full charge: "4 %", "0.3 %".
+    func charge(_ share: Double) -> String {
+        String(format: share < 0.01 ? "%.1f %%" : "%.0f %%", share * 100)
+    }
+
+    /// "25 min", "1 h 10".
+    func minutes(_ hours: Double) -> String {
+        let total = Int((hours * 60).rounded())
+        return total < 60 ? "\(total) min" : String(format: "%d h %02d", total / 60, total % 60)
     }
 
     func ago(_ date: Date) -> String {
