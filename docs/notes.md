@@ -8,7 +8,7 @@
 - Grouping by the outermost `.app` in the executable path: Chrome's helpers are nested `.app` bundles inside `Google Chrome.app`. Outside a bundle, the executable name.
 - Energy is `ri_energy_nj`, not `ri_billed_energy`: the billed one only counts work billed through vouchers and read 0 for Zen at 6 % CPU.
 - Memory is `ri_phys_footprint`, the figure Activity Monitor shows as Memory.
-- Pace: every 5 s on mains, 15 s on battery, every second while the menu is open, right away on wake and on memory pressure. Timers get 20 % tolerance so macOS can batch the wake-up. The history keeps one line per app per minute (CPU and energy averaged over the minute, memory at its peak), only for apps above 0.1 % CPU or 50 MB: about 2 MB a day.
+- Pace: every 5 s on mains, 15 s on battery, every second while the menu is open, right away on wake and on memory pressure. Timers get 20 % tolerance so macOS can batch the wake-up. The history keeps one line per app per minute (CPU and energy averaged over the minute, memory at its peak), only for apps above 0.1 % CPU or 50 MB: about 5 MB a day (~50 apps a minute measured), ~33 MB for the week.
 - Rejected for the pace: Endpoint Security (Apple-granted entitlement, root system extension, Full Disk Access), powermetrics (root), DTrace (SIP), private APIs.
 - "macOS's own process" means running from `/System/`, `/usr/`, `/bin/`, `/sbin/` or `/Library/Apple/`. Findings skip those: they are not what oynky hunts and nothing can be done about them.
 - Background hog: third-party, ≥ 5 % CPU averaged over 30 minutes, not brought to the front in those 30 minutes, with at least 24 of the 30 minutes in the history (no verdict right after launch or wake).

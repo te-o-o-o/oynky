@@ -63,7 +63,7 @@ public struct History: Sendable {
         }
     }
 
-    // ponytail: fixed thresholds keep a day around 2 MB; tune them once alerts show what they miss.
+    // ponytail: fixed thresholds keep a day around 5 MB (~50 apps a minute); tune them once alerts show what they miss.
     public static func worthKeeping(_ app: AppUsage) -> Bool {
         app.cpu >= 0.1 || app.memory >= 50_000_000
     }
