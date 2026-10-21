@@ -37,14 +37,14 @@
 - Menu bar managers (Thaw, Bartender) query the status item through Accessibility all the time: that work lands in oynky's main thread and shows in its CPU (0.28 % at rest with Thaw running, 0.18 % before it).
 - Manual page summaries are English only; the glossary covers the busiest macOS processes, not all of them.
 - XPC services (WebKit pages, video decoders) are started by launchd for an app: the app that asked for them is not known without private APIs.
-- Minutes of battery on a Mac that has never run on battery; the draw on battery is not verified yet (the test Mac stayed plugged in).
+- Minutes of battery on a Mac that has never run on battery.
 - Real icon and menu design, small charts.
 
 ## Verified
 
 | OS | Status |
 |---|---|
-| macOS 27.0.1 (arm64) | `oynky top` run as a user: ~370 processes read, ~180–240 of other users skipped; CPU in ns checked by a test (200 ms spin); the menu bar app runs from `oynky.app`, writes the history, uses 0.21 s of CPU over 2 min at rest (0.18 % of one core) and 50 MB of RAM; installs found: Thaw, AltTab (through its agent), copycopy; reports found: Zen, rustc, cargo (third-party) and Apple ones filtered out. Menu checked on a screenshot: explanations under each name (signers, "launched by Raycast", glossary and manual page lines). Battery capacity read (72 Wh), draw on battery not verified. Not run with sudo, not run on Intel. |
+| macOS 27.0.1 (arm64) | `oynky top` run as a user: ~370 processes read, ~180–240 of other users skipped; CPU in ns checked by a test (200 ms spin); the menu bar app runs from `oynky.app`, writes the history, uses 0.21 s of CPU over 2 min at rest (0.18 % of one core) and 50 MB of RAM; installs found: Thaw, AltTab (through its agent), copycopy; reports found: Zen, rustc, cargo (third-party) and Apple ones filtered out. Menu checked on a screenshot: explanations under each name (signers, "launched by Raycast", glossary and manual page lines). Battery capacity read (72 Wh); the usual draw on battery was measured overnight at 6.7 W. Not run with sudo, not run on Intel. |
 
 ## Pitfalls
 
