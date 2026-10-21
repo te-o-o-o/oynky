@@ -14,14 +14,31 @@ let ghostty = "/Applications/Ghostty.app/Contents/MacOS/ghostty"
         Proc(pid: 13, ppid: 12, start: 0, path: "/opt/homebrew/bin/node", cpu: 0, energy: 0, memory: 0),
         Proc(pid: 14, ppid: 10, start: 0, path: ghostty, cpu: 0, energy: 0, memory: 0),
     ])
-    let found = launchers(in: s)
+    let found = launchers(in: s, lookup: { _ in nil })
     #expect(found["node"] == "Ghostty")
     #expect(found["Ghostty"] == nil)  // an app's own child processes do not launch the app
 }
 
 @Test func aServiceStartedByLaunchdHasNoLauncher() {
     let s = Snapshot(time: 0, procs: [Proc(pid: 20, ppid: 1, start: 0, path: "/usr/libexec/trustd", cpu: 0, energy: 0, memory: 0)])
-    #expect(launchers(in: s).isEmpty)
+    #expect(launchers(in: s, lookup: { _ in nil }).isEmpty)
+}
+
+@Test func aRootProcessInTheChainIsCrossed() {
+    // Ghostty → login (root: not in the snapshot) → zsh → claude.
+    let s = Snapshot(time: 0, procs: [
+        Proc(pid: 10, ppid: 1, start: 0, path: ghostty, cpu: 0, energy: 0, memory: 0),
+        Proc(pid: 12, ppid: 11, start: 0, path: "/bin/zsh", cpu: 0, energy: 0, memory: 0),
+        Proc(pid: 13, ppid: 12, start: 0, path: "/Users/me/.local/bin/claude", cpu: 0, energy: 0, memory: 0),
+    ])
+    let found = launchers(in: s, lookup: { $0 == 11 ? (ppid: 10, path: "/usr/bin/login") : nil })
+    #expect(found["claude"] == "Ghostty")
+}
+
+@Test func theParentOfARootProcessIsReadable() {
+    // launchd's parent is the kernel (pid 0): readable although launchd belongs to root.
+    #expect(parent(of: 1)?.ppid == 0)
+    #expect(parent(of: 1)?.path == "/sbin/launchd")
 }
 
 @Test func snapshotReadsTheParentProcess() throws {
@@ -30,8 +47,8 @@ let ghostty = "/Applications/Ghostty.app/Contents/MacOS/ghostty"
 }
 
 @Test func macOSBinariesAreSignedByApple() {
-    #expect(signer(path: "/bin/ls") == "Apple")
-    #expect(signer(path: "/no/such/file") == nil)
+    #expect(signature(path: "/bin/ls") == .author("Apple"))
+    #expect(signature(path: "/no/such/file") == nil)
 }
 
 @Test func manualPagesGiveAOneLineSummary() {
