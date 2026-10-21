@@ -43,14 +43,13 @@ public func usage(from a: Snapshot, to b: Snapshot) -> [AppUsage] {
     for p in b.procs {
         // A process absent before, or a reused pid, started during the interval: all its usage is new.
         let old = before[p.pid].flatMap { $0.start == p.start ? $0 : nil }
-        let name = appName(path: p.path)
-        var app = apps[name] ?? AppUsage(name: name, cpu: 0, watts: 0, memory: 0, processes: 0, apple: true)
-        app.apple = app.apple && isApple(path: p.path)
+        var app = apps[p.app] ?? AppUsage(name: p.app, cpu: 0, watts: 0, memory: 0, processes: 0, apple: true)
+        app.apple = app.apple && p.apple
         app.cpu += Double(since(old?.cpu, p.cpu)) / elapsed * 100
         app.watts += Double(since(old?.energy, p.energy)) / elapsed  // nJ / ns = W
         app.memory += p.memory
         app.processes += 1
-        apps[name] = app
+        apps[p.app] = app
     }
     return Array(apps.values)
 }

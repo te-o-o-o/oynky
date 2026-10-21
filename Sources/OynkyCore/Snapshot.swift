@@ -6,6 +6,9 @@ public struct Proc: Equatable, Sendable {
     /// Launch time on the snapshot clock (ns since boot): tells a reused pid apart, and gives the process's age.
     public var start: UInt64
     public var path: String
+    /// Derived from the path once per process, not on every snapshot: see `appName(path:)` and `isApple(path:)`.
+    public var app: String
+    public var apple: Bool
     /// User + system CPU time, in nanoseconds.
     public var cpu: UInt64
     /// Energy used by the process, in nanojoules. Not `ri_billed_energy`: that one only counts
@@ -18,6 +21,8 @@ public struct Proc: Equatable, Sendable {
         self.pid = pid
         self.start = start
         self.path = path
+        self.app = appName(path: path)
+        self.apple = isApple(path: path)
         self.cpu = cpu
         self.energy = energy
         self.memory = memory
@@ -45,8 +50,11 @@ private let timebase: (numer: UInt64, denom: UInt64) = {
     return (UInt64(t.numer), UInt64(t.denom))
 }()
 
-/// Reads every process we are allowed to read. Costs a few milliseconds for ~500 processes.
-public func snapshot() -> Snapshot {
+/// Reads every process we are allowed to read. Processes already in `previous` keep their path
+/// and app name: those only change with the process, and are the most costly part to read.
+/// A few milliseconds for ~400 processes, a third of that when nearly all are known.
+public func snapshot(after previous: Snapshot? = nil) -> Snapshot {
+    let known = Dictionary((previous?.procs ?? []).map { ($0.pid, $0) }, uniquingKeysWith: { first, _ in first })
     let time = clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
     let size = MemoryLayout<pid_t>.size
     // The first call only returns the size needed; leave room for processes started in between.
@@ -65,17 +73,20 @@ public func snapshot() -> Snapshot {
             unreadable += 1
             continue
         }
+        let start = info.ri_proc_start_abstime * timebase.numer / timebase.denom
+        let cpu = (info.ri_user_time + info.ri_system_time) * timebase.numer / timebase.denom
+        if var p = known[pid], p.start == start {
+            p.cpu = cpu
+            p.energy = info.ri_energy_nj
+            p.memory = info.ri_phys_footprint
+            procs.append(p)
+            continue
+        }
         // A process that exits between the two calls has no path any more: drop it.
         let length = Int(proc_pidpath(pid, &path, UInt32(path.count)))
         guard length > 0 else { continue }
-        procs.append(Proc(
-            pid: pid,
-            start: info.ri_proc_start_abstime * timebase.numer / timebase.denom,
-            path: String(decoding: path.prefix(length), as: UTF8.self),
-            cpu: (info.ri_user_time + info.ri_system_time) * timebase.numer / timebase.denom,
-            energy: info.ri_energy_nj,
-            memory: info.ri_phys_footprint
-        ))
+        let p = String(decoding: path.prefix(length), as: UTF8.self)
+        procs.append(Proc(pid: pid, start: start, path: p, cpu: cpu, energy: info.ri_energy_nj, memory: info.ri_phys_footprint))
     }
     return Snapshot(time: time, procs: procs, unreadable: unreadable)
 }
