@@ -1,0 +1,14 @@
+Date/Time:        2026-10-18 12:25:49.000 +0700
+OS Version:       macOS 27.0.1 (Build 26A434)
+
+Command:          cloudd
+Path:             /System/Library/PrivateFrameworks/CloudKitDaemon.framework/Support/cloudd
+PID:              612
+
+Event:            disk writes
+Action taken:     none
+Writes:           2147.49 MB of file backed memory dirtied over 15766 seconds (136.21 KB per second average), exceeding limit of 24.86 KB per second over 86400 seconds
+
+Process:          org.mozilla.updater [80123]
+Path:             /Applications/Zen.app/Contents/MacOS/updater.app/Contents/MacOS/org.mozilla.updater
+Is First Party:   No
