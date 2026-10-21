@@ -17,18 +17,27 @@ public let reportsFolder = URL(filePath: "/Library/Logs/DiagnosticReports")
 public func reports(in folder: URL = reportsFolder, since: Date) -> [Report] {
     let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
     return files.compactMap { file -> Report? in
+        // The file is touched when macOS moves it around, so its date only rules out old ones early.
         guard file.pathExtension == "diag",
-              let date = try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate, date >= since,
+              let modified = try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate, modified >= since,
               let handle = try? FileHandle(forReadingFrom: file)
         else { return nil }
         defer { try? handle.close() }
         // The fields sit in the first lines; the rest is kilobytes of stack samples.
         let head = (try? handle.read(upToCount: 4096)).map { String(decoding: $0, as: UTF8.self) } ?? ""
-        return parseReport(head, date: date)
+        return parseReport(head, fallbackDate: modified).flatMap { $0.date >= since ? $0 : nil }
     }.sorted { $0.date > $1.date }
 }
 
-func parseReport(_ text: String, date: Date) -> Report? {
+/// "2026-10-20 15:13:35.063 +0700"
+private let reportDate: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS Z"
+    return f
+}()
+
+func parseReport(_ text: String, fallbackDate: Date) -> Report? {
     var fields: [String: String] = [:]
     var detail = ""
     var afterAction = false
@@ -44,5 +53,7 @@ func parseReport(_ text: String, date: Date) -> Report? {
     guard let event = fields["Event"], let path = fields["Path"] else { return nil }
     // The first Path is the reported process; later ones belong to other processes in the samples.
     // Not "Is First Party": Apple's own reports leave it out, so a later process's "No" would be picked up.
+    // When the event ended, the closest to "when it happened"; Date/Time is when it started.
+    let date = (fields["End time"] ?? fields["Date/Time"]).flatMap(reportDate.date) ?? fallbackDate
     return Report(name: appName(path: path), event: event, detail: detail, date: date, apple: isApple(path: path))
 }
