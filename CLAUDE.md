@@ -27,6 +27,8 @@ This project is outside the global stack table on purpose (macOS-only, Swift, li
 - `#expect`/`#require` cannot call `mutating` methods (`monitor.add`): store the result first.
 - `swift test` sometimes fails with "plugin for module 'TestingMacros' not found" (Command Line Tools bug, random): just rerun.
 - Test fixtures (`Tests/OynkyCoreTests/Fixtures`) are trimmed by hand: never commit a raw `.diag`, it holds the Mac's identifiers.
+- Read parents with `PROC_PIDT_SHORTBSDINFO` (`parent(of:)`): `PROC_PIDTBSDINFO` is refused for root's processes, such as the `login` between a terminal and its shell.
+- Never display a command line: only `script(_:)`'s name, which rejects anything that could be a token.
 - Apple's code is told by its signature's issuer, not the leaf's name (it changed between macOS versions).
 - Notifications and Open at Login need the bundled app: both are skipped under `swift run`.
 - History lines have 7 tab-separated fields; a line that does not parse is skipped, so changing the format silently drops old lines.

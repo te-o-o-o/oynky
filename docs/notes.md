@@ -22,11 +22,14 @@
 - Battery: capacity is today's full charge (`BatteryData.FullChargeCapacity` × voltage), not the design capacity. An app's energy over 24 h is the sum of its minutes in the history. Minutes of battery use the Mac's usual draw on battery (`InstantAmperage` × voltage, averaged over the minutes on battery, kept in UserDefaults `draw`): no minutes until the Mac has run on battery.
 - Energy figures checked: one performance core at full load reads 2.97 W from `ri_energy_nj`. Most apps show a few mW because they run on the efficiency cores.
 - Explanations, all read from the Mac: the signer from the code signature (`SecStaticCode`, not validated: it names the author, it does not vouch for the code); "launched by" by walking up the parent processes to the first other `.app` (shells skipped, stops at launchd); "starts on its own" when a launch plist runs that program (~850 plists, ~40 ms, indexed once); the manual page's `.Nd` line; and `Glossary.swift`, written by hand for ~60 macOS processes, in English and French.
+- Programs with no author: ad-hoc signatures (flag 0x2, what the linker and Homebrew produce) are told apart from no signature at all. Then: the script an interpreter runs (only its name, and only when it looks like a file or module name: a command line can hold tokens), where the binary lives (`Place`), its working folder, its creation date, and the quarantine tag (`com.apple.quarantine`: downloading app and date; the site comes from `QuarantineEventsV2`, read-only, when the app recorded it: Zen and Homebrew do not).
+- A file named like a version (Claude Code's `2.1.306`) is named after argv[0] (`claude`), read only for such files.
+- Parents: `PROC_PIDT_SHORTBSDINFO`, not `PROC_PIDTBSDINFO`: the full one is refused for root's processes, and root's `login` sits between a terminal and its shell, which broke "launched by Ghostty" and the in-use rule for terminal tools.
 - Apple's code is told by its signature's issuer (`Apple Code Signing Certification Authority`): the leaf's name changed from "Software Signing" to "macOS Software Signing".
 
 ## Not handled yet
 
-- Executables named by version (Claude Code runs `~/.local/share/claude/versions/2.1.306`) show up as `2.1.306`; `proc_name` says the same. Only argv[0] (`KERN_PROCARGS2`) would say `claude`.
+- "Launched by" names the first other app up the parents: MCP servers started by Claude Code in Ghostty read "launched by Ghostty", not "by claude".
 - Launch agents outside any `.app` and not installed in the last 7 days are not tied back to their app.
 - "In use" means brought to the front: an app playing a video in a window behind another one counts as background.
 - Login items registered with `SMAppService` live inside their app and do not show up as installs; their processes still count towards the app.
