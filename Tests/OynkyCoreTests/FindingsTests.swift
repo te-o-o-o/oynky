@@ -75,3 +75,8 @@ let gigabyte: UInt64 = 1_000_000_000
     #expect(found[0].date == Date(timeIntervalSince1970: 1_792_484_015.063))  // its End time, 2026-10-20 15:13:35.063 +0700
     #expect(found[1].date == Date(timeIntervalSince1970: 1_792_301_149))  // no End time: its Date/Time
 }
+
+@Test func aFindingIsToldOncePerDay() {
+    let told = ["hog:Zen": noon - 3600, "climb:Leaky": noon - 90000]
+    #expect(due(["hog:Zen", "climb:Leaky", "hog:New"], told: told, now: noon) == ["climb:Leaky", "hog:New"])
+}

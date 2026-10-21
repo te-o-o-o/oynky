@@ -4,8 +4,8 @@ import OynkyCore
 import ServiceManagement
 
 // ponytail: inline English/French pairs; move to Localizable.strings once they outgrow a handful.
-private let french = Locale.preferredLanguages.first?.hasPrefix("fr") == true
-private func tr(_ english: String, _ frenchText: String) -> String { french ? frenchText : english }
+let french = Locale.preferredLanguages.first?.hasPrefix("fr") == true
+func tr(_ english: String, _ frenchText: String) -> String { french ? frenchText : english }
 
 @MainActor
 final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -63,6 +63,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for (folder, _) in installPlaces { watch(folder) }
         watch(reportsFolder)
 
+        setUpNotifications()
         readClues()
         judge()
         sample()
@@ -115,6 +116,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var seen = Set<String>()
         flagged = reports(since: since).filter { !$0.apple && seen.insert($0.name + "\t" + $0.event).inserted }
         updateIcon()
+        tell()
     }
 
     func judge() {
@@ -124,6 +126,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hogs = backgroundHogs(recent, inUse: inUse, now: now)
         climbs = memoryClimbs(recent, now: now)
         updateIcon()
+        tell()
     }
 
     /// Placeholder symbols until the real design: the needle goes up when something is worth a look.
@@ -158,8 +161,6 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func fill() {
         menu.removeAllItems()
-        let relative = RelativeDateTimeFormatter()
-        relative.locale = Locale(identifier: french ? "fr" : "en")
 
         if hogs.isEmpty && climbs.isEmpty && flagged.isEmpty {
             menu.addItem(withTitle: tr("Nothing suspicious", "Rien de suspect"), action: nil, keyEquivalent: "").isEnabled = false
@@ -167,12 +168,12 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         section(tr("Busy in the background", "Actives en arrière-plan"), ranked(hogs, by: .cpu).map { ($0.name, [percent($0.cpu), milliwatts($0.watts)], nil) })
         section(tr("Memory keeps growing", "Mémoire qui ne redescend pas"), climbs.map { ($0.name, ["", "\(bytes($0.from)) → \(bytes($0.to))"], nil) })
         section(tr("Flagged by macOS", "Signalées par macOS"), flagged.map { report in
-            (report.name, ["", event(report.event)], "\(relative.localizedString(for: report.date, relativeTo: Date())): \(report.detail)")
+            (report.name, ["", event(report.event)], "\(ago(report.date)): \(report.detail)")
         })
         section(tr("Installed recently", "Installées récemment"), installed.map { install in
             let use = sinceInstall[install.name]
             let running = monitor.last.map { longLived($0, app: install.name) } ?? 0
-            var note = tr("Installed", "Installée") + " " + relative.localizedString(for: install.added, relativeTo: Date())
+            var note = tr("Installed", "Installée") + " " + ago(install.added)
             if install.kind == .daemon { note += tr(". Runs as root: not measured.", ". Tourne en root : non mesurée.") }
             if running > 0 { note += tr(". \(running) processes running for over an hour.", ". \(running) processus actifs depuis plus d'une heure.") }
             return (install.name, [percent(use?.cpu ?? 0), milliwatts(use?.watts ?? 0)], note)
@@ -210,6 +211,12 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.toolTip = row.tip
             menu.addItem(item)
         }
+    }
+
+    func ago(_ date: Date) -> String {
+        let relative = RelativeDateTimeFormatter()
+        relative.locale = Locale(identifier: french ? "fr" : "en")
+        return relative.localizedString(for: date, relativeTo: Date())
     }
 
     func event(_ name: String) -> String {
