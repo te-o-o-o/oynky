@@ -15,6 +15,7 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var monitor = Monitor()
     var timer: Timer?
     var menuOpen = false
+    var alerting = false
     var sources: [any DispatchSourceProtocol] = []
 
     /// The last 6 hours of history, kept in memory for the rules that run every minute.
@@ -133,6 +134,8 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = Date()
         var inUse = Set(front.filter { $0.value > now - 30 * 60 }.keys)
         if let path = NSWorkspace.shared.frontmostApplication?.executableURL?.path { inUse.insert(appName(path: path)) }
+        // What an app in use launched is in use too: a build or `node` running in the terminal you are typing in.
+        if let last = monitor.last { inUse.formUnion(launchers(in: last).filter { inUse.contains($0.value) }.keys) }
         hogs = backgroundHogs(recent, inUse: inUse, now: now)
         climbs = memoryClimbs(recent, now: now)
         updateIcon()
@@ -143,6 +146,9 @@ final class MenuBar: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func updateIcon() {
         let fresh = flagged.contains { $0.date > Date(timeIntervalSinceNow: -86400) }
         let alert = !hogs.isEmpty || !climbs.isEmpty || fresh
+        // Only on a change: every new image makes menu bar managers (Thaw, Bartender) query the item again.
+        guard alert != alerting || item.button?.image == nil else { return }
+        alerting = alert
         item.button?.image = NSImage(systemSymbolName: alert ? "gauge.with.dots.needle.67percent" : "gauge.with.dots.needle.33percent", accessibilityDescription: "oynky")
     }
 
