@@ -16,6 +16,12 @@
 - Installations : ce qui est arrivé dans `/Applications`, `~/Applications`, `~/Library/LaunchAgents`, `/Library/LaunchAgents`, `/Library/LaunchDaemons` ces 7 derniers jours, daté par `addedToDirectoryDate` (l'arrivée dans le dossier, pas la compilation). Un plist de lancement est rattaché à l'app qui contient son `Program`. Les dossiers sont surveillés (DispatchSource), sans scrutation.
 - Rapports de macOS : les fichiers `.diag` de `/Library/Logs/DiagnosticReports`, lisibles par les administrateurs sans root (groupe `_analyticsusers`). Seuls les 4 premiers Ko sont lus. Datés par leur `End time` : la date du fichier change quand macOS déplace les fichiers. Événements vus : `disk writes`, `cpu usage`.
 
+- Notifications : une par clé de constat (`hog:Zen`, `climb:Zen`, `report:Zen:disk writes`, `install:Zen`), au plus une fois par jour, dates gardées dans UserDefaults (`told`), oubliées après 7 jours. Les rapports de macOS ne notifient que s'ils ont moins d'un jour, pour qu'un premier lancement ne ressorte pas toute la semaine. Les installations notifient quand elles laissent des processus tourner depuis plus d'une heure.
+- Batterie : la capacité est la charge complète d'aujourd'hui (`BatteryData.FullChargeCapacity` × tension), pas la capacité d'origine. L'énergie d'une app sur 24 h est la somme de ses minutes dans l'historique. Les minutes de batterie utilisent la consommation habituelle du Mac sur batterie (`InstantAmperage` × tension, moyennée sur les minutes sur batterie, gardée dans UserDefaults `draw`) : pas de minutes tant que le Mac n'a pas tourné sur batterie.
+- Énergie vérifiée : un cœur performance à fond donne 2,97 W via `ri_energy_nj`. La plupart des apps affichent quelques mW parce qu'elles tournent sur les cœurs basse consommation.
+- Explications, toutes lues sur le Mac : l'auteur depuis la signature du code (`SecStaticCode`, non validée : elle nomme l'auteur, elle ne garantit pas le code) ; « lancée par » en remontant les processus parents jusqu'au premier autre `.app` (shells sautés, arrêt à launchd) ; « se lance toute seule » quand un plist de lancement lance ce programme (~850 plists, ~40 ms, indexés une fois) ; la ligne `.Nd` de la page de manuel ; et `Glossary.swift`, écrit à la main pour ~60 processus de macOS, en anglais et en français.
+- Le code d'Apple se reconnaît à l'émetteur de sa signature (`Apple Code Signing Certification Authority`) : le nom du certificat est passé de « Software Signing » à « macOS Software Signing ».
+
 ## Pas encore géré
 
 - Les exécutables nommés par leur version (Claude Code lance `~/.local/share/claude/versions/2.1.306`) apparaissent comme `2.1.306` ; `proc_name` dit pareil. Seul argv[0] (`KERN_PROCARGS2`) dirait `claude`.
@@ -23,13 +29,16 @@
 - « Utilisée » veut dire mise au premier plan : une app qui lit une vidéo dans une fenêtre derrière une autre compte comme en arrière-plan.
 - Les éléments d'ouverture enregistrés avec `SMAppService` vivent dans leur app et n'apparaissent pas comme installations ; leurs processus comptent quand même pour l'app.
 - Un processus qui vit moins d'un intervalle d'échantillonnage n'est pas vu du tout.
-- Notifications, vrai design de l'icône et du menu.
+- Les résumés des pages de manuel sont en anglais seulement ; le glossaire couvre les processus de macOS les plus actifs, pas tous.
+- Les services XPC (pages WebKit, décodeurs vidéo) sont lancés par launchd pour une app : l'app qui les a demandés n'est pas connue sans API privée.
+- Les minutes de batterie sur un Mac qui n'a jamais tourné sur batterie ; la consommation sur batterie n'est pas encore vérifiée (le Mac de test est resté branché).
+- Vrai design de l'icône et du menu, petits graphiques.
 
 ## Vérifié
 
 | OS | État |
 |---|---|
-| macOS 27.0.1 (arm64) | `oynky top` lancé en utilisateur : ~370 processus lus, ~180–240 d'autres utilisateurs ignorés ; CPU en ns vérifié par un test (boucle de 200 ms) ; l'app de la barre des menus tourne depuis `oynky.app`, écrit l'historique, utilise 0,21 s de CPU en 2 min au repos (0,18 % d'un cœur) et 50 Mo de RAM ; installations trouvées : Thaw, AltTab (via son agent), copycopy ; rapports trouvés : Zen, rustc, cargo (tiers) et ceux d'Apple filtrés. Contenu du menu pas encore vérifié à l'œil. Pas lancé avec sudo, pas lancé sur Intel. |
+| macOS 27.0.1 (arm64) | `oynky top` lancé en utilisateur : ~370 processus lus, ~180–240 d'autres utilisateurs ignorés ; CPU en ns vérifié par un test (boucle de 200 ms) ; l'app de la barre des menus tourne depuis `oynky.app`, écrit l'historique, utilise 0,21 s de CPU en 2 min au repos (0,18 % d'un cœur) et 50 Mo de RAM ; installations trouvées : Thaw, AltTab (via son agent), copycopy ; rapports trouvés : Zen, rustc, cargo (tiers) et ceux d'Apple filtrés. Menu vérifié sur capture : explications sous chaque nom (auteurs, « lancée par Raycast », lignes du glossaire et des pages de manuel). Capacité de la batterie lue (72 Wh), consommation sur batterie pas vérifiée. Pas lancé avec sudo, pas lancé sur Intel. |
 
 ## Pièges
 

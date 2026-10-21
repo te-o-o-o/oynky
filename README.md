@@ -11,11 +11,14 @@ Activity Monitor tells you how much. oynky tells you who, since when, and whethe
 - **Memory that never comes back down**: an app whose memory went up hour after hour for 6 hours.
 - **Flagged by macOS**: macOS writes its own reports when a process goes over its CPU, wakeup or disk-write limits, in a folder nobody reads. oynky reads it.
 - **Installed recently**: the apps and background services added in the last 7 days, with what each one used since, and the processes it left running for good.
+- **Names that mean something**: under each process, what it does, who made it and how it starts: `mediaanalysisd` is "Analyses photos and videos · Apple", `node` is "unsigned · launched by Raycast", a helper is "Google LLC · starts on its own". Hover for when it runs and whether that is normal.
+- **Battery cost**: each app's share of a full charge over the last 24 hours, and the minutes of battery it costs once the Mac has run on battery.
+- **Notifications**: once a day at most per finding, only when something is new. A click opens the menu.
 - **Live view**: the apps using the most CPU, energy and memory right now and over the last hour, their helpers counted with them (Chrome's renderers are Chrome).
 - **Quiet and light**: a menu bar icon that changes when something is worth a look, about 0.2 % of one efficiency core, nothing to set up.
-- **Read-only**: oynky reads what macOS already tracks. No root, no network, no helper; it never signals, slows down or kills anything.
+- **Read-only**: oynky reads what macOS already tracks. No root, no network, no helper; it never signals, slows down or kills anything. Every explanation comes from the Mac itself (signatures, launch services, manual pages) or from a short glossary written by hand.
 
-**Not yet**: notifications, the real icon and menu design.
+**Not yet**: the real icon and menu design, with small charts.
 
 ## Install
 
@@ -28,7 +31,7 @@ cp -R .build/oynky.app /Applications/
 open /Applications/oynky.app
 ```
 
-Click the icon and pick **Open at Login** to start it with your session.
+Click the icon and pick **Open at Login** to start it with your session. macOS asks once whether oynky may send notifications.
 
 ## Usage
 
