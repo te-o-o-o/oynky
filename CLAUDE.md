@@ -26,11 +26,13 @@ This project is outside the global stack table on purpose (macOS-only, Swift, li
 - `#expect`/`#require` cannot call `mutating` methods (`monitor.add`): store the result first.
 - `swift test` sometimes fails with "plugin for module 'TestingMacros' not found" (Command Line Tools bug, random): just rerun.
 - Test fixtures (`Tests/OynkyCoreTests/Fixtures`) are trimmed by hand: never commit a raw `.diag`, it holds the Mac's identifiers.
+- Apple's code is told by its signature's issuer, not the leaf's name (it changed between macOS versions).
+- Notifications and Open at Login need the bundled app: both are skipped under `swift run`.
 - History lines have 7 tab-separated fields; a line that does not parse is skipped, so changing the format silently drops old lines.
 
 ## Rules
 
 - Keep `README.md` and `README.fr.md`, `docs/notes.md` and `docs/notes.fr.md` in sync, in the same change.
-- Menu text goes through `tr(english, french)`.
+- Menu text goes through `tr(english, french)`. Glossary entries (`Glossary.swift`) always come in both languages; only write what is sure, keep a doubtful one out.
 - The icon and menu are placeholders (SF Symbols, plain NSMenu) until the design pass: no mascot.
 - Commits: one line, Conventional Commits, no body, no trailer.

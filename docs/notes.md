@@ -16,6 +16,12 @@
 - Installs: what landed in `/Applications`, `~/Applications`, `~/Library/LaunchAgents`, `/Library/LaunchAgents`, `/Library/LaunchDaemons` in the last 7 days, dated by `addedToDirectoryDate` (when it landed in the folder, not when it was built). A launch plist is tied to the app owning its `Program`. The folders are watched (DispatchSource), no polling.
 - macOS reports: the `.diag` files of `/Library/Logs/DiagnosticReports`, readable by admin users without root (group `_analyticsusers`). Only the first 4 KB are read. Dated by their `End time`: the file date changes when macOS moves files around. Event names seen: `disk writes`, `cpu usage`.
 
+- Notifications: one per finding key (`hog:Zen`, `climb:Zen`, `report:Zen:disk writes`, `install:Zen`), at most once a day, the dates kept in UserDefaults (`told`), forgotten after 7 days. macOS reports only notify when less than a day old, so a first launch does not dig up the week. Installs notify once they leave processes running for over an hour.
+- Battery: capacity is today's full charge (`BatteryData.FullChargeCapacity` × voltage), not the design capacity. An app's energy over 24 h is the sum of its minutes in the history. Minutes of battery use the Mac's usual draw on battery (`InstantAmperage` × voltage, averaged over the minutes on battery, kept in UserDefaults `draw`): no minutes until the Mac has run on battery.
+- Energy figures checked: one performance core at full load reads 2.97 W from `ri_energy_nj`. Most apps show a few mW because they run on the efficiency cores.
+- Explanations, all read from the Mac: the signer from the code signature (`SecStaticCode`, not validated: it names the author, it does not vouch for the code); "launched by" by walking up the parent processes to the first other `.app` (shells skipped, stops at launchd); "starts on its own" when a launch plist runs that program (~850 plists, ~40 ms, indexed once); the manual page's `.Nd` line; and `Glossary.swift`, written by hand for ~60 macOS processes, in English and French.
+- Apple's code is told by its signature's issuer (`Apple Code Signing Certification Authority`): the leaf's name changed from "Software Signing" to "macOS Software Signing".
+
 ## Not handled yet
 
 - Executables named by version (Claude Code runs `~/.local/share/claude/versions/2.1.306`) show up as `2.1.306`; `proc_name` says the same. Only argv[0] (`KERN_PROCARGS2`) would say `claude`.
@@ -23,13 +29,16 @@
 - "In use" means brought to the front: an app playing a video in a window behind another one counts as background.
 - Login items registered with `SMAppService` live inside their app and do not show up as installs; their processes still count towards the app.
 - A process that lives less than one snapshot interval is not seen at all.
-- Notifications, real icon and menu design.
+- Manual page summaries are English only; the glossary covers the busiest macOS processes, not all of them.
+- XPC services (WebKit pages, video decoders) are started by launchd for an app: the app that asked for them is not known without private APIs.
+- Minutes of battery on a Mac that has never run on battery; the draw on battery is not verified yet (the test Mac stayed plugged in).
+- Real icon and menu design, small charts.
 
 ## Verified
 
 | OS | Status |
 |---|---|
-| macOS 27.0.1 (arm64) | `oynky top` run as a user: ~370 processes read, ~180–240 of other users skipped; CPU in ns checked by a test (200 ms spin); the menu bar app runs from `oynky.app`, writes the history, uses 0.21 s of CPU over 2 min at rest (0.18 % of one core) and 50 MB of RAM; installs found: Thaw, AltTab (through its agent), copycopy; reports found: Zen, rustc, cargo (third-party) and Apple ones filtered out. Menu content not checked by eye yet. Not run with sudo, not run on Intel. |
+| macOS 27.0.1 (arm64) | `oynky top` run as a user: ~370 processes read, ~180–240 of other users skipped; CPU in ns checked by a test (200 ms spin); the menu bar app runs from `oynky.app`, writes the history, uses 0.21 s of CPU over 2 min at rest (0.18 % of one core) and 50 MB of RAM; installs found: Thaw, AltTab (through its agent), copycopy; reports found: Zen, rustc, cargo (third-party) and Apple ones filtered out. Menu checked on a screenshot: explanations under each name (signers, "launched by Raycast", glossary and manual page lines). Battery capacity read (72 Wh), draw on battery not verified. Not run with sudo, not run on Intel. |
 
 ## Pitfalls
 
