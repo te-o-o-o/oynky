@@ -1,0 +1,62 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the tag matches the version
+        run: |
+          version=$(sed -n 's/^VERSION=\([0-9.]*\).*/\1/p' bundle.sh)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match VERSION=$version in bundle.sh"
+            exit 1
+          fi
+
+      - run: swift test
+      - run: ./bundle.sh
+
+      - name: Zip the app
+        run: ditto -c -k --norsrc --noextattr --keepParent .build/oynky.app oynky-macos-universal.zip
+
+      - name: Make the disk image
+        run: |
+          # The app next to an Applications link: open it and drag one onto the other.
+          mkdir dmg
+          cp -R .build/oynky.app dmg/
+          ln -s /Applications dmg/Applications
+          # HFS+ with lzma: less than half the default APFS + zlib image (measured on wrkspaces), opens on macOS 10.15+.
+          hdiutil create -volname oynky -srcfolder dmg -ov -fs HFS+ -format ULMO oynky-macos-universal.dmg
+
+      - name: Write the release notes
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          # The CHANGELOG section of this version, without its title.
+          awk -v v="$version" '$0 ~ "^## " v " " {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          cat >> notes.md <<'NOTES'
+
+          ### Install
+
+          Download `oynky-macos-universal.dmg`, open it and drag `oynky.app` onto Applications. The `.zip` holds the same app.
+          The binary inside is also the command line tool: `/Applications/oynky.app/Contents/MacOS/oynky top`.
+
+          The app is not signed with an Apple Developer ID, so macOS blocks it on first launch. Either right-click it and pick **Open**, or run once:
+
+          ```sh
+          xattr -d com.apple.quarantine /Applications/oynky.app
+          ```
+
+          NOTES
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" oynky-macos-universal.dmg oynky-macos-universal.zip --title "$GITHUB_REF_NAME" --notes-file notes.md
