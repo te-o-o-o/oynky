@@ -3,6 +3,8 @@ import Darwin
 /// One process at one instant. Counters are cumulative since the process started.
 public struct Proc: Equatable, Sendable {
     public var pid: Int32
+    /// The parent process, read once like the path: what tells "launched by Ghostty" apart from a service.
+    public var ppid: Int32
     /// Launch time on the snapshot clock (ns since boot): tells a reused pid apart, and gives the process's age.
     public var start: UInt64
     public var path: String
@@ -17,8 +19,9 @@ public struct Proc: Equatable, Sendable {
     /// Physical footprint in bytes: what Activity Monitor shows as Memory.
     public var memory: UInt64
 
-    public init(pid: Int32, start: UInt64, path: String, cpu: UInt64, energy: UInt64, memory: UInt64) {
+    public init(pid: Int32, ppid: Int32 = 1, start: UInt64, path: String, cpu: UInt64, energy: UInt64, memory: UInt64) {
         self.pid = pid
+        self.ppid = ppid
         self.start = start
         self.path = path
         self.app = appName(path: path)
@@ -85,8 +88,10 @@ public func snapshot(after previous: Snapshot? = nil) -> Snapshot {
         // A process that exits between the two calls has no path any more: drop it.
         let length = Int(proc_pidpath(pid, &path, UInt32(path.count)))
         guard length > 0 else { continue }
+        var bsd = proc_bsdinfo()
+        let ppid = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, Int32(MemoryLayout<proc_bsdinfo>.size)) > 0 ? Int32(bsd.pbi_ppid) : 1
         let p = String(decoding: path.prefix(length), as: UTF8.self)
-        procs.append(Proc(pid: pid, start: start, path: p, cpu: cpu, energy: info.ri_energy_nj, memory: info.ri_phys_footprint))
+        procs.append(Proc(pid: pid, ppid: ppid, start: start, path: p, cpu: cpu, energy: info.ri_energy_nj, memory: info.ri_phys_footprint))
     }
     return Snapshot(time: time, procs: procs, unreadable: unreadable)
 }
