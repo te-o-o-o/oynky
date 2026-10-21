@@ -7,13 +7,16 @@ public struct AppUsage: Equatable, Sendable {
     /// Current footprint, in bytes.
     public var memory: UInt64
     public var processes: Int
+    /// Every process runs from a macOS location: not what oynky hunts.
+    public var apple: Bool
 
-    public init(name: String, cpu: Double, watts: Double, memory: UInt64, processes: Int) {
+    public init(name: String, cpu: Double, watts: Double, memory: UInt64, processes: Int, apple: Bool = false) {
         self.name = name
         self.cpu = cpu
         self.watts = watts
         self.memory = memory
         self.processes = processes
+        self.apple = apple
     }
 }
 
@@ -23,6 +26,11 @@ public struct AppUsage: Equatable, Sendable {
 public func appName(path: String) -> String {
     let outside = path.firstRange(of: ".app/").map { path[..<$0.lowerBound] } ?? Substring(path)
     return outside.split(separator: "/").last.map(String.init) ?? path
+}
+
+/// macOS's own locations. Apple apps in /Applications (Safari) are not caught: harmless, they rarely hide.
+public func isApple(path: String) -> Bool {
+    ["/System/", "/usr/", "/bin/", "/sbin/", "/Library/Apple/"].contains { path.hasPrefix($0) }
 }
 
 /// Usage per app between two snapshots, in no particular order.
@@ -36,7 +44,8 @@ public func usage(from a: Snapshot, to b: Snapshot) -> [AppUsage] {
         // A process absent before, or a reused pid, started during the interval: all its usage is new.
         let old = before[p.pid].flatMap { $0.start == p.start ? $0 : nil }
         let name = appName(path: p.path)
-        var app = apps[name] ?? AppUsage(name: name, cpu: 0, watts: 0, memory: 0, processes: 0)
+        var app = apps[name] ?? AppUsage(name: name, cpu: 0, watts: 0, memory: 0, processes: 0, apple: true)
+        app.apple = app.apple && isApple(path: p.path)
         app.cpu += Double(since(old?.cpu, p.cpu)) / elapsed * 100
         app.watts += Double(since(old?.energy, p.energy)) / elapsed  // nJ / ns = W
         app.memory += p.memory

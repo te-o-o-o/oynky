@@ -32,7 +32,7 @@ public struct History: Sendable {
         let stamp = Int(time.timeIntervalSince1970)
         let lines = apps.filter(Self.worthKeeping).map { app in
             let name = app.name.replacing("\t", with: " ").replacing("\n", with: " ")
-            return String(format: "%d\t%@\t%.1f\t%.3f\t%llu\t%d\n", stamp, name, app.cpu, app.watts, app.memory, app.processes)
+            return String(format: "%d\t%@\t%.1f\t%.3f\t%llu\t%d\t%d\n", stamp, name, app.cpu, app.watts, app.memory, app.processes, app.apple ? 1 : 0)
         }
         let handle = try FileHandle(forWritingTo: file)
         defer { try? handle.close() }
@@ -76,10 +76,10 @@ public struct History: Sendable {
 
     static func parse(_ line: Substring) -> Record? {
         let f = line.split(separator: "\t", omittingEmptySubsequences: false)
-        guard f.count == 6, let stamp = Int(f[0]), let cpu = Double(f[2]), let watts = Double(f[3]),
+        guard f.count == 7, let stamp = Int(f[0]), let cpu = Double(f[2]), let watts = Double(f[3]),
               let memory = UInt64(f[4]), let processes = Int(f[5])
         else { return nil }
-        let app = AppUsage(name: String(f[1]), cpu: cpu, watts: watts, memory: memory, processes: processes)
+        let app = AppUsage(name: String(f[1]), cpu: cpu, watts: watts, memory: memory, processes: processes, apple: f[6] == "1")
         return Record(time: Date(timeIntervalSince1970: TimeInterval(stamp)), app: app)
     }
 }
@@ -91,7 +91,7 @@ public func summary(_ records: [Record]) -> [AppUsage] {
     let samples = Double(Set(records.map(\.time)).count)
     var apps: [String: AppUsage] = [:]
     for r in records.sorted(by: { $0.time < $1.time }) {
-        var app = apps[r.app.name] ?? AppUsage(name: r.app.name, cpu: 0, watts: 0, memory: 0, processes: 0)
+        var app = apps[r.app.name] ?? AppUsage(name: r.app.name, cpu: 0, watts: 0, memory: 0, processes: 0, apple: r.app.apple)
         app.cpu += r.app.cpu / samples
         app.watts += r.app.watts / samples
         app.memory = r.app.memory

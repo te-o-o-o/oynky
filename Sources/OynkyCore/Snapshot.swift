@@ -3,7 +3,7 @@ import Darwin
 /// One process at one instant. Counters are cumulative since the process started.
 public struct Proc: Equatable, Sendable {
     public var pid: Int32
-    /// With the pid, tells a reused pid apart from the process that had it before.
+    /// Launch time on the snapshot clock (ns since boot): tells a reused pid apart, and gives the process's age.
     public var start: UInt64
     public var path: String
     /// User + system CPU time, in nanoseconds.
@@ -25,7 +25,7 @@ public struct Proc: Equatable, Sendable {
 }
 
 public struct Snapshot: Sendable {
-    /// Monotonic clock, in nanoseconds.
+    /// Monotonic clock, in nanoseconds since boot (the clock `Proc.start` is on).
     public var time: UInt64
     public var procs: [Proc]
     /// Processes we may not read: other users' (root daemons) need oynky to run as root.
@@ -70,7 +70,7 @@ public func snapshot() -> Snapshot {
         guard length > 0 else { continue }
         procs.append(Proc(
             pid: pid,
-            start: info.ri_proc_start_abstime,
+            start: info.ri_proc_start_abstime * timebase.numer / timebase.denom,
             path: String(decoding: path.prefix(length), as: UTF8.self),
             cpu: (info.ri_user_time + info.ri_system_time) * timebase.numer / timebase.denom,
             energy: info.ri_energy_nj,
