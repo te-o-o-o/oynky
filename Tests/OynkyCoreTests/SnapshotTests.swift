@@ -20,3 +20,13 @@ import Testing
     // Other test threads may burn CPU too, hence the loose upper bound.
     #expect((150_000_000...2_000_000_000).contains(after.cpu - before.cpu), "spun \(spin)")
 }
+
+@Test func aKnownProcessKeepsItsPathAndGetsFreshCounters() throws {
+    let first = snapshot()
+    var stale = first
+    // A wrong path on a process still alive must be kept: proof it was not read again.
+    stale.procs = stale.procs.map { var p = $0; if p.pid == getpid() { p.path = "/kept"; p.app = "kept"; p.memory = 0 }; return p }
+    let me = try #require(snapshot(after: stale).procs.first { $0.pid == getpid() })
+    #expect(me.app == "kept")
+    #expect(me.memory > 0)
+}

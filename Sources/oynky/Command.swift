@@ -53,7 +53,7 @@ func command(_ arguments: [String]) -> Never {
 
     let first = snapshot()
     Thread.sleep(forTimeInterval: interval)
-    let last = snapshot()
+    let last = snapshot(after: first)
 
     func cell(_ s: String, _ width: Int) -> String {
         String(repeating: " ", count: max(0, width - s.count)) + s

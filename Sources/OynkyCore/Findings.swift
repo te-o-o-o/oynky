@@ -47,5 +47,5 @@ public func memoryClimbs(_ records: [Record], now: Date, hours: Int = 6, minGrow
 
 /// How many processes of an app have been running for longer than `age`: what an install left running for good.
 public func longLived(_ snapshot: Snapshot, app: String, age: UInt64 = 3_600_000_000_000) -> Int {
-    snapshot.procs.filter { appName(path: $0.path) == app && snapshot.time >= $0.start + age }.count
+    snapshot.procs.filter { $0.app == app && snapshot.time >= $0.start + age }.count
 }
