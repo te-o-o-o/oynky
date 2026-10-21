@@ -37,14 +37,14 @@
 - Les gestionnaires de barre des menus (Thaw, Bartender) interrogent sans arrêt l'élément de menu via l'Accessibilité : ce travail tombe dans le fil principal d'oynky et compte dans son CPU (0,28 % au repos avec Thaw, 0,18 % avant).
 - Les résumés des pages de manuel sont en anglais seulement ; le glossaire couvre les processus de macOS les plus actifs, pas tous.
 - Les services XPC (pages WebKit, décodeurs vidéo) sont lancés par launchd pour une app : l'app qui les a demandés n'est pas connue sans API privée.
-- Les minutes de batterie sur un Mac qui n'a jamais tourné sur batterie ; la consommation sur batterie n'est pas encore vérifiée (le Mac de test est resté branché).
+- Les minutes de batterie sur un Mac qui n'a jamais tourné sur batterie.
 - Vrai design de l'icône et du menu, petits graphiques.
 
 ## Vérifié
 
 | OS | État |
 |---|---|
-| macOS 27.0.1 (arm64) | `oynky top` lancé en utilisateur : ~370 processus lus, ~180–240 d'autres utilisateurs ignorés ; CPU en ns vérifié par un test (boucle de 200 ms) ; l'app de la barre des menus tourne depuis `oynky.app`, écrit l'historique, utilise 0,21 s de CPU en 2 min au repos (0,18 % d'un cœur) et 50 Mo de RAM ; installations trouvées : Thaw, AltTab (via son agent), copycopy ; rapports trouvés : Zen, rustc, cargo (tiers) et ceux d'Apple filtrés. Menu vérifié sur capture : explications sous chaque nom (auteurs, « lancée par Raycast », lignes du glossaire et des pages de manuel). Capacité de la batterie lue (72 Wh), consommation sur batterie pas vérifiée. Pas lancé avec sudo, pas lancé sur Intel. |
+| macOS 27.0.1 (arm64) | `oynky top` lancé en utilisateur : ~370 processus lus, ~180–240 d'autres utilisateurs ignorés ; CPU en ns vérifié par un test (boucle de 200 ms) ; l'app de la barre des menus tourne depuis `oynky.app`, écrit l'historique, utilise 0,21 s de CPU en 2 min au repos (0,18 % d'un cœur) et 50 Mo de RAM ; installations trouvées : Thaw, AltTab (via son agent), copycopy ; rapports trouvés : Zen, rustc, cargo (tiers) et ceux d'Apple filtrés. Menu vérifié sur capture : explications sous chaque nom (auteurs, « lancée par Raycast », lignes du glossaire et des pages de manuel). Capacité de la batterie lue (72 Wh) ; la consommation habituelle sur batterie a été mesurée pendant la nuit à 6,7 W. Pas lancé avec sudo, pas lancé sur Intel. |
 
 ## Pièges
 
